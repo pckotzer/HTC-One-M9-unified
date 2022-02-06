@@ -1,0 +1,9 @@
+allow audioserver dts_data_file:dir rw_dir_perms;
+allow audioserver dts_data_file:file create_file_perms;
+allow audioserver audioserver_tmpfs:file { read write execute };
+allow audioserver system_file:file { execmod };
+allow audioserver audioserver_tmpfs:file { read write execute };
+allow audioserver unlabeled:file { read write execute open getattr };
+allow audioserver system_file:file { execmod };
+# Allow ViPER4Android in enforcing mode.
+allow audioserver audioserver_tmpfs:file { read write execute };
