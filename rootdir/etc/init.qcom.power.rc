@@ -1,0 +1,178 @@
+on boot
+    # add a cpuset for the camera daemon
+    # we want all the little cores for camera
+    mkdir /dev/cpuset/camera-daemon
+    write /dev/cpuset/camera-daemon/cpus 0-1,3-4,6
+    write /dev/cpuset/camera-daemon/mems 0-1,3-4,6
+    chown system system /dev/cpuset/camera-daemon
+    chown system system /dev/cpuset/camera-daemon/tasks
+    chmod 0664 /dev/cpuset/camera-daemon/tasks
+
+    # update foreground cpuset now that processors are up
+    # reserve CPU 3 for the top app and camera daemon
+    write /dev/cpuset/foreground/cpus 0-7
+    write /dev/cpuset/background/cpus 0-3
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/camera-daemon/cpus 0-1,3-4,6
+    write /dev/cpuset/restricted/cpus 0-3
+
+on property:sys.boot_completed=1
+    setprop sys.io.scheduler "zen"
+
+    # Disable retention on HTC
+    write /sys/module/lpm_levels/system/a53/cpu0/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a53/cpu1/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a53/cpu2/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a53/cpu3/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a57/cpu4/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a57/cpu5/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a57/cpu6/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a57/cpu7/retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a57/a57-l2-retention/idle_enabled 0
+    write /sys/module/lpm_levels/system/a53/a53-l2-retention/idle_enabled 0
+
+    # ensure at most one A57 is online when thermal hotplug is disabled
+    write /sys/devices/system/cpu/cpu5/online 0
+    write /sys/devices/system/cpu/cpu6/online 0
+    write /sys/devices/system/cpu/cpu7/online 0
+
+
+    # disable thermal bcl hotplug to switch governor
+    write /sys/module/msm_thermal/core_control/enabled 0
+
+    # configure governor settings for little cluster
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor "ondemand"
+    
+    # must restore after Ondemand
+    restorecon -R /sys/devices/system/cpu
+    
+    # Define Max and Lowest clockspeeds for littel cluster up to 1,7Ghz, 1,7Ghz is archived with Overclock normally stock run at 1,5 
+    # So 1,5Ghz Still good enough for littel cluster it run on an voltage lvl of [985mv] vs [1050] at 1,7Ghz. High clocks on main Cpu also nearly impossibel to undervolt so 1,5Ghz is total fine 
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 384000
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1555000
+
+    # online CPU4
+    write /sys/devices/system/cpu/cpu4/online 1
+
+    # configure governor settings for big cluster
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor "impulse"
+    # must restore after impulse
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 384000
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq 2054000
+    
+    # Set Vibrator voltage level fore calmer vibration, also on keybaord it fells better at this lvl
+    write /sys/class/timed_output/vibrator/voltage_level 2259
+
+    # re-enable thermal and BCL hotplug
+    write /sys/module/msm_thermal/core_control/enabled 1
+
+    # enable LPM
+    write /sys/module/lpm_levels/parameters/sleep_disabled 0
+
+    # change GPU initial power to 630MHz(level 0) 
+    write /sys/class/kgsl/kgsl-3d0/default_pwrlevel 0
+
+    # set GPU default governor to msm-adreno-tz
+    write /sys/class/devfreq/fdb00000.qcom,kgsl-3d0/governor msm-adreno-tz
+
+    # Tweak some virtual ram and ram management
+    write /proc/sys/vm/overcommit_ratio 80
+    write /proc/sys/vm/swappiness 75
+    write /proc/sys/vm/dirty_ratio 5
+    write /sys/block/zram0/max_comp_streams 8
+    write /proc/sys/vm/min_free_kbytes 3500
+    write /proc/sys/vm/dirty_expire_centisecs 80
+    write /proc/sys/vm/vfs_cache_pressure 180
+    write /proc/sys/vm/dirty_background_ratio 3
+    
+    # Bluelight filter by default (light) disabeld for now due LiveDisplay reset it after wake up
+    # write /sys/class/graphics/fb0/rgb "32768 32768 30301"
+    # chmod 0466 /sys/class/graphics/fb0/rgb
+
+    # Set some govenor settings for ondemand (LITTEL) impulse (big)
+    write /sys/devices/system/cpu/cpu0/cpufreq/ondemand/up_threshold "90"
+    write /sys/devices/system/cpu/cpu1/cpufreq/ondemand/up_threshold "90"
+    write /sys/devices/system/cpu/cpu2/cpufreq/ondemand/up_threshold "90" 
+    write /sys/devices/system/cpu/cpu3/cpufreq/ondemand/up_threshold "90" 
+    write /sys/devices/system/cpu/cpu0/cpufreq/ondemand/sampling_rate "77000"
+    write /sys/devices/system/cpu/cpu1/cpufreq/ondemand/sampling_rate "77000"
+    write /sys/devices/system/cpu/cpu2/cpufreq/ondemand/sampling_rate "77000"
+    write /sys/devices/system/cpu/cpu3/cpufreq/ondemand/sampling_rate "77000"
+    write /sys/devices/system/cpu/cpu0/cpufreq/ondemand/powersave_bias "35"
+    write /sys/devices/system/cpu/cpu1/cpufreq/ondemand/powersave_bias "35"
+    write /sys/devices/system/cpu/cpu2/cpufreq/ondemand/powersave_bias "35"
+    write /sys/devices/system/cpu/cpu3/cpufreq/ondemand/powersave_bias "35"
+    write /sys/devices/system/cpu/cpu4/cpufreq/impulse/above_hispeed_delay "200000"
+    write /sys/devices/system/cpu/cpu5/cpufreq/impulse/above_hispeed_delay "200000"
+    write /sys/devices/system/cpu/cpu6/cpufreq/impulse/above_hispeed_delay "200000"
+    write /sys/devices/system/cpu/cpu7/cpufreq/impulse/above_hispeed_delay "200000"
+    write /sys/devices/system/cpu/cpu4/cpufreq/impulse/hispeed_freq "864000"
+    write /sys/devices/system/cpu/cpu5/cpufreq/impulse/hispeed_freq "864000"
+    write /sys/devices/system/cpu/cpu6/cpufreq/impulse/hispeed_freq "864000"
+    write /sys/devices/system/cpu/cpu7/cpufreq/impulse/hispeed_freq "864000"
+    write /sys/devices/system/cpu/cpu4/cpufreq/impulse/powersave_bias "1"
+    write /sys/devices/system/cpu/cpu5/cpufreq/impulse/powersave_bias "1"
+    write /sys/devices/system/cpu/cpu6/cpufreq/impulse/powersave_bias "1"
+    write /sys/devices/system/cpu/cpu7/cpufreq/impulse/powersave_bias "1"
+    write /sys/devices/system/cpu/cpu4/cpufreq/impulse/go_hispeed_load "77"
+    write /sys/devices/system/cpu/cpu5/cpufreq/impulse/go_hispeed_load "77"
+    write /sys/devices/system/cpu/cpu6/cpufreq/impulse/go_hispeed_load "77"
+    write /sys/devices/system/cpu/cpu7/cpufreq/impulse/go_hispeed_load "77"
+    write /sys/devices/system/cpu/cpu4/cpufreq/impulse/target_loads "55"
+    write /sys/devices/system/cpu/cpu5/cpufreq/impulse/target_loads "55"
+    write /sys/devices/system/cpu/cpu6/cpufreq/impulse/target_loads "55"
+    write /sys/devices/system/cpu/cpu7/cpufreq/impulse/target_loads "55"
+    write/sys/devices/system/cpu/cpu4/cpufreq/impulse/io_is_busy 1
+    write/sys/devices/system/cpu/cpu5/cpufreq/impulse/io_is_busy 1
+    write/sys/devices/system/cpu/cpu6/cpufreq/impulse/io_is_busy 1
+    write/sys/devices/system/cpu/cpu7/cpufreq/impulse/io_is_busy 1
+    write /sys/module/workqueue/parameters/power_efficient "Y"
+    
+    
+    # Some I/O Improvements, aka Tweaks
+    write /sys/block/mmcblk0/queue/read_ahead_kb 1152
+    write /sys/block/mmcblk0/queue/rq_affinity 0
+    write /sys/block/loop0/queue/add_random "1"
+    write /proc/sys/kernel/random/read_wakeup_threshold "384"
+    write /proc/sys/module/random/write_wakeup_threshold "192"
+    write /sys/block/loop0/queue/read_ahead_kb "3200"
+    write /sys/block/loop0/queue/rq_affinity "1"
+    write /sys/block/zram0/queue/read_ahead_kb "7168"
+    write /sys/block/zram0/queue/add_random "1"
+    write /sys/block/zram0/queue/rq_affinity "0"
+    write /sys/block/ram1/queue/read_ahead_kb "2240" 
+    write /sys/block/mmcblk0/queue/iosched/fifo_expire_async "40"
+    write /sys/block/mmcblk0/queue/iosched/fifo_expire_sync "20"
+    write /sys/block/mmcblk0/queue/iosched/timeout_sync "40"
+    write /sys/block/mmcblk0/queue/read_ahead_kb 1152
+    write /sys/block/mmcblk0/queue/rq_affinity 0
+    
+    # Hide /unix for Magisk app detection    
+    chmod 440 /proc/net/unix
+    
+    # Cpu Undervolting 
+    write /sys/devices/system/cpu/cpu0/cpufreq/UV_mV_table "0 760 775 780 795 805 825 885 945 965 985 1030 1050 0 0 0 785 795 810 850 880 890 900 925 925 930 960 960 980"
+    
+    # android background processes are set to nice 11. Never schedule these on the a57s.
+    write /sys/class/kgsl/kgsl-3d0/max_gpuclk "510000000"
+    write /proc/sys/kernel/sched_upmigrate_min_nice 11 
+    
+    # Setting b.L scheduler parameters
+    write /proc/sys/kernel/sched_migration_fixup 1
+    write /proc/sys/kernel/sched_small_task 30
+    write /proc/sys/kernel/sched_mostly_idle_load 20
+    write /proc/sys/kernel/sched_mostly_idle_nr_run 3
+    write /proc/sys/kernel/sched_upmigrate 95
+    write /proc/sys/kernel/sched_downmigrate 85
+    write /proc/sys/kernel/sched_window_stats_policy 2
+    write /proc/sys/kernel/sched_ravg_hist_size 5
+    write /proc/sys/kernel/sched_freq_inc_notify 400000
+    write /proc/sys/kernel/sched_freq_dec_notify 400000
+    
+    #enable rps static configuration
+    write /sys/class/net/rmnet_ipa0/queues/rx-0/rps_cpus "0f"
+    write /sys/class/devfreq/qcom,cpubw.34/governor "bw_hwmon"
+    write /sys/class/devfreq/qcom,mincpubw.35/governor "cpufreq"
+    stop tombstoned
+    stop logd

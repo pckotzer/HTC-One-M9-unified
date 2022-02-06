@@ -1,0 +1,2 @@
+allow vendor_file self:filesystem associate;
+allow vendor_file sysfs_fastcharger:file rw_file_perms;
